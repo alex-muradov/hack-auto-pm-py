@@ -2,4 +2,7 @@ requests
 openai-whisper
 python-telegram-bot
 ffmpeg-python
-python-socketio[asyncio_client] 
+python-socketio[asyncio_client]
+python-socketio[asyncio_server]
+aiohttp
+aiohttp-cors 
