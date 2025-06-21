@@ -74,30 +74,8 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Send API request
         response = requests.request("POST", url, json=payload, headers=headers)
         response.raise_for_status()  # Raise exception for bad status codes
-        
-        data = response.json()
-        response_text = None
-        # The nested structure can be typical for Langflow.
-        if "outputs" in data and data["outputs"]:
-            first_output = data["outputs"][0]
-            if "outputs" in first_output and first_output["outputs"]:
-                second_output = first_output["outputs"][0]
-                if "results" in second_output and "message" in second_output.get("results", {}):
-                    message_data = second_output["results"]["message"].get("data")
-                    if message_data and "text" in message_data:
-                        response_text = message_data["text"]
-
-        if response_text:
-            parsed_objects = parse_langflow_response(response_text)
-            print(parsed_objects)
-            if parsed_objects:
-                pretty_output = json.dumps(parsed_objects, indent=2, ensure_ascii=False)
-                await update.message.reply_text(f"Полученный объект:\n{pretty_output}")
-            else:
-                await update.message.reply_text(f"Не удалось извлечь объекты из ответа:\n{response_text}")
-        else:
-            await update.message.reply_text("Не удалось найти текстовый ответ в JSON от API.")
-
+        response_text = response.json().data
+        print(parse_langflow_response(response_text))
 
     except requests.exceptions.RequestException as e:
         print(f"Error making API request: {e}")
