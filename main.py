@@ -10,50 +10,13 @@ import socketio
 from typing import List, Dict, Any
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-from aiohttp import web
-from aiohttp_cors import setup as cors_setup, ResourceOptions
 
-# Socket.IO Server
-sio_server = socketio.AsyncServer(cors_allowed_origins="*")
-app = web.Application()
-sio_server.attach(app)
-
-# Socket.IO Client (for internal communication)
-sio_client = socketio.AsyncClient()
-SOCKET_URL = "http://localhost:3001" # This will connect to our own server
+# Socket.IO Client - connects to your existing WebSocket server
+sio = socketio.AsyncClient()
+SOCKET_URL = "http://localhost:3001" # Your existing WebSocket server
 
 # Загружаем модель Whisper один раз
 model = whisper.load_model("large")
-
-# Socket.IO Server Event Handlers
-@sio_server.event
-async def connect(sid, environ):
-    print(f"Client {sid} connected")
-    return True
-
-@sio_server.event
-async def disconnect(sid):
-    print(f"Client {sid} disconnected")
-
-# HTTP routes for CORS and basic API
-async def index(request):
-    return web.Response(text="Socket.IO Server is running!", content_type="text/html")
-
-async def health(request):
-    return web.json_response({"status": "healthy", "server": "running"})
-
-app.router.add_get('/', index)
-app.router.add_get('/health', health)
-
-# Setup CORS
-cors = cors_setup(app, defaults={
-    "*": ResourceOptions(
-        allow_credentials=True,
-        expose_headers="*",
-        allow_headers="*",
-        allow_methods="*"
-    )
-})
 
 # Обработка голосовых
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -125,7 +88,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                         if is_task and isinstance(tasks_obj, list):
                             for task_item in tasks_obj:
-                                await sio_server.emit("new-task", {
+                                await sio.emit("new-task", {
                                     "id": int(time.time() * 1000),
                                     "text": task_item.get("title", "No Title"),
                                     "status": "todo",
@@ -135,7 +98,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                         if is_call and isinstance(calls_obj, list):
                             for call_item in calls_obj:
-                                await sio_server.emit("new-call", {
+                                await sio.emit("new-call", {
                                     "name": call_item.get("name", "No Name"),
                                     "status": call_item.get("status", "No Status"),
                                     "priority": call_item.get("priority", "medium").lower()
@@ -153,50 +116,29 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except ValueError as e:
         print(f"Error parsing response: {e}")
 
-async def run_bot():
-    """Run the Telegram bot"""
-    bot_app = (
+async def main():
+    # Connect to your existing WebSocket server on port 3001
+    try:
+        await sio.connect(SOCKET_URL)
+        print(f"Connected to WebSocket server at {SOCKET_URL}")
+    except socketio.exceptions.ConnectionError as e:
+        print(f"Failed to connect to WebSocket server: {e}")
+        return
+
+    # Set up and run the Telegram bot
+    app = (
         ApplicationBuilder()
         .token("8124160481:AAGSaxNXjDU2WCiOKBO5cnQzfTrODnDze40")
         .build()
     )
-    bot_app.add_handler(MessageHandler(filters.VOICE, voice_handler))
+    app.add_handler(MessageHandler(filters.VOICE, voice_handler))
     
-    print("Starting Telegram bot...")
-    await bot_app.run_polling()
-
-async def run_server():
-    """Run the Socket.IO server"""
-    from aiohttp import web
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, 'localhost', 3001)
-    await site.start()
-    print("Socket.IO server started on http://localhost:3001")
-    
-    # Keep the server running
     try:
-        while True:
-            await asyncio.sleep(1)
-    except KeyboardInterrupt:
-        print("Shutting down server...")
+        print("Starting Telegram bot...")
+        await app.run_polling()
     finally:
-        await runner.cleanup()
-
-async def main():
-    """Run both the Socket.IO server and Telegram bot concurrently"""
-    print("Starting Socket.IO server and Telegram bot...")
-    
-    # Run both the server and bot concurrently
-    try:
-        await asyncio.gather(
-            run_server(),
-            run_bot()
-        )
-    except KeyboardInterrupt:
-        print("Application shutting down...")
-    except Exception as e:
-        print(f"Error: {e}")
+        await sio.disconnect()
+        print("Disconnected from WebSocket server.")
 
 # Запуск бота
 if __name__ == "__main__":
