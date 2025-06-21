@@ -112,10 +112,11 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             for call_item in calls_obj:
                                 await sio.emit("new-call", {
                                     "name": call_item.get("name", "No Name"),
-                                    "status": call_item.get("status", "No Status"),
-                                    "priority": call_item.get("priority", "medium").lower()
+                                    "members": call_item.get("members", []),
+                                    "date": call_item.get("date", ""),
+                                    "time": call_item.get("time", "")
                                 })
-                                print(f"Emitted new-call: {call_item.get('name')}")
+                                print(f"Emitted new-call: {call_item.get('name')} with members: {call_item.get('members', [])}")
                     else:
                         print(f"Not enough parts in data line: {len(parts)}")
                 else:
