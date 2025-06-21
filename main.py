@@ -3,12 +3,31 @@ import whisper
 import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+import re
+import ast
 
 # Загружаем модель Whisper один раз
 model = whisper.load_model(
     "large"
 )  # или "small", "medium", "large" — зависит от точности и скорости
 
+def parse_langflow_response(response_text: str) -> List[Dict[str, Any]]:
+
+    pattern = r"(\[\{.*?\}\])"
+    matches = re.findall(pattern, response_text, re.DOTALL)
+    
+    all_objects = []
+    for match in matches:
+        try:
+            # The matched string is a Python literal, so we use ast.literal_eval
+            parsed_list = ast.literal_eval(match)
+            if isinstance(parsed_list, list):
+                all_objects.extend(parsed_list)
+        except (ValueError, SyntaxError) as e:
+            print(f"Could not parse a matched part of the response: {match}")
+            print(f"Error: {e}")
+            
+    return all_objects
 
 # Обработка голосовых
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -55,7 +74,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response.raise_for_status()  # Raise exception for bad status codes
 
         # Print response
-        print(response.text)
+        print(JSON.parse(response.text))
 
     except requests.exceptions.RequestException as e:
         print(f"Error making API request: {e}")
