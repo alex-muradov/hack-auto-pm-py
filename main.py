@@ -73,10 +73,23 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(output)
         if output:
             try:
-                lines = output.strip().split('\\n')
-                if len(lines) >= 3:
-                    parts = [p.strip() for p in lines[2].split('|') if p.strip()]
-                    if len(parts) == 4:
+                # Split by actual newlines (not literal \n)
+                lines = output.strip().split('\n')
+                print(f"Number of lines: {len(lines)}")
+                
+                # Find the data row (should be the last line with actual data)
+                data_line = None
+                for line in lines:
+                    if line.strip() and not line.startswith('|:') and line.count('|') >= 4:
+                        data_line = line
+                
+                if data_line:
+                    print(f"Data line: {data_line}")
+                    # Split by | and clean up
+                    parts = [p.strip() for p in data_line.split('|') if p.strip()]
+                    print(f"Parts: {parts}")
+                    
+                    if len(parts) >= 4:
                         calls_obj = ast.literal_eval(parts[0])
                         tasks_obj = ast.literal_eval(parts[1])
                         is_call = ast.literal_eval(parts[2])
@@ -84,6 +97,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         
                         result = {"calls": calls_obj, "tasks": tasks_obj, "call": is_call, "task": is_task}
                         print(result)
+                        
                         if is_task and isinstance(tasks_obj, list):
                             for task_item in tasks_obj:
                                 await sio.emit("new-task", {
@@ -102,6 +116,10 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     "priority": call_item.get("priority", "medium").lower()
                                 })
                                 print(f"Emitted new-call: {call_item.get('name')}")
+                    else:
+                        print(f"Not enough parts in data line: {len(parts)}")
+                else:
+                    print("No valid data line found")
 
             except (ValueError, SyntaxError, IndexError) as e:
                 print(f"Error parsing string from table: {e}")
