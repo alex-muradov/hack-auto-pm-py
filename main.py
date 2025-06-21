@@ -125,7 +125,7 @@ async def main():
         print(f"Failed to connect to WebSocket server: {e}")
         return
 
-    # Set up and run the Telegram bot
+    # Set up the Telegram bot
     app = (
         ApplicationBuilder()
         .token("8124160481:AAGSaxNXjDU2WCiOKBO5cnQzfTrODnDze40")
@@ -135,8 +135,23 @@ async def main():
     
     try:
         print("Starting Telegram bot...")
-        await app.run_polling()
+        # Initialize the bot
+        await app.initialize()
+        await app.start()
+        await app.updater.start_polling()
+        
+        # Keep the bot running
+        try:
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            print("Shutting down...")
     finally:
+        # Clean shutdown
+        if app.updater.running:
+            await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
         await sio.disconnect()
         print("Disconnected from WebSocket server.")
 
