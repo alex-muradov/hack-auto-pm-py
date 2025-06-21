@@ -43,7 +43,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🗣 Распознанный текст:\n{text}")
 
     # The complete API endpoint URL for this flow
-    url = "https://api.langflow.astra.datastax.com/lf/b4828243-d5e3-41b7-90c9-8200dfe14113/api/v1/run/9968a0f4-7598-4543-b709-01539b95d734"
+    url = "http://localhost:7868/api/v1/run/100de29a-0136-45aa-89c6-47ccee483953"
 
     payload = {
         "input_value": text,
@@ -53,7 +53,6 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": "Bearer AstraCS:UegUmCocfwshlqlcYcvUzvoc:327d8f2ba67d8b451140b22fd8c04c13283294a855cab146f3aacfca7b514ef0",
     }
 
     try:
@@ -71,6 +70,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if message_data and "text" in message_data:
                         output = message_data["text"]
         
+        print(output)
         if output:
             try:
                 lines = output.strip().split('\\n')
@@ -83,9 +83,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         is_task = ast.literal_eval(parts[3])
                         
                         result = {"calls": calls_obj, "tasks": tasks_obj, "call": is_call, "task": is_task}
-                        pretty_output = json.dumps(result, indent=2, ensure_ascii=False)
-                        await update.message.reply_text(f"Полученный объект:\n{pretty_output}")
-
+                        print(result)
                         if is_task and isinstance(tasks_obj, list):
                             for task_item in tasks_obj:
                                 await sio.emit("new-task", {
